@@ -33,13 +33,13 @@ func exec_round(a, b, c, d *uint32) {
 
 func Serialize(block []uint32) {
     for i, val := range block {
-        subblock_little := make([]byte, 4)
-        binary.BigEndian.PutUint32(subblock_little, val)
-        block[i] = binary.LittleEndian.Uint32(subblock_little)
+        subblock_bytes := make([]byte, 4)
+        binary.BigEndian.PutUint32(subblock_bytes, val)
+        block[i] = binary.LittleEndian.Uint32(subblock_bytes)
     }
 }
 
-func Generate_stream(key, nonce []uint32, counter uint32) []uint32 {
+func GenerateStream(key, nonce []uint32, counter uint32) []uint32 {
     var block []uint32
     block = append(block, chacha20_init0, chacha20_init1, chacha20_init2, chacha20_init3)
     block = append(block, key...)
