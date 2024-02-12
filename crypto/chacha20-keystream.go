@@ -5,7 +5,7 @@ import (
     "encoding/binary"
 )
 
-const Rounds = 20
+const rounds = 20
 const (
     chacha20_init0 = 0x61707865 
     chacha20_init1 = 0x3320646e
@@ -31,7 +31,7 @@ func exec_round(a, b, c, d *uint32) {
     *b = bits.RotateLeft32(*b, 7)
 }
 
-func serialize(block []uint32) {
+func Serialize(block []uint32) {
     for i, val := range block {
         subblock_little := make([]byte, 4)
         binary.BigEndian.PutUint32(subblock_little, val)
@@ -49,7 +49,7 @@ func Generate_stream(key, nonce []uint32, counter uint32) []uint32 {
     initial_block := make([]uint32, 16)
     copy(initial_block, block)
 
-    for i := 0; i < Rounds / 2; i++ {
+    for i := 0; i < rounds / 2; i++ {
         exec_round(&block[0], &block[4], &block[8], &block[12])
         exec_round(&block[1], &block[5], &block[9], &block[13])
         exec_round(&block[2], &block[6], &block[10], &block[14])
@@ -64,8 +64,6 @@ func Generate_stream(key, nonce []uint32, counter uint32) []uint32 {
     for i, val := range initial_block {
         block[i], _ = bits.Add32(block[i], val, 0)
     }
-
-    serialize(block)
 
     return block
 }
