@@ -6,14 +6,8 @@ import (
 )
 
 const rounds = 20
-const (
-    chacha20_init0 = 0x61707865 
-    chacha20_init1 = 0x3320646e
-    chacha20_init2 = 0x79622d32
-    chacha20_init3 = 0x6b206574
-)
 
-func exec_round(a, b, c, d *uint32) {
+func execRound(a, b, c, d *uint32) {
     *a, _ = bits.Add32(*a, *b, 0)
     *d = *d ^ *a
     *d = bits.RotateLeft32(*d, 16)
@@ -31,7 +25,7 @@ func exec_round(a, b, c, d *uint32) {
     *b = bits.RotateLeft32(*b, 7)
 }
 
-func Serialize(block []uint32) {
+func Serialize(block *[16]uint32) {
     for i, val := range block {
         subblock_bytes := make([]byte, 4)
         binary.BigEndian.PutUint32(subblock_bytes, val)
@@ -39,26 +33,23 @@ func Serialize(block []uint32) {
     }
 }
 
-func GenerateStream(key, nonce []uint32, counter uint32) []uint32 {
-    var block []uint32
-    block = append(block, chacha20_init0, chacha20_init1, chacha20_init2, chacha20_init3)
-    block = append(block, key...)
-    block = append(block, counter)
-    block = append(block, nonce...)
+func GenerateStream(initial_block [16]uint32) [16]uint32 {
+    var block [16]uint32
 
-    initial_block := make([]uint32, 16)
-    copy(initial_block, block)
+    for i, v := range initial_block {
+        block[i] = v
+    }
 
     for i := 0; i < rounds / 2; i++ {
-        exec_round(&block[0], &block[4], &block[8], &block[12])
-        exec_round(&block[1], &block[5], &block[9], &block[13])
-        exec_round(&block[2], &block[6], &block[10], &block[14])
-        exec_round(&block[3], &block[7], &block[11], &block[15])
+        execRound(&block[0], &block[4], &block[8], &block[12])
+        execRound(&block[1], &block[5], &block[9], &block[13])
+        execRound(&block[2], &block[6], &block[10], &block[14])
+        execRound(&block[3], &block[7], &block[11], &block[15])
 
-        exec_round(&block[0], &block[5], &block[10], &block[15])
-        exec_round(&block[1], &block[6], &block[11], &block[12])
-        exec_round(&block[2], &block[7], &block[8], &block[13])
-        exec_round(&block[3], &block[4], &block[9], &block[14])
+        execRound(&block[0], &block[5], &block[10], &block[15])
+        execRound(&block[1], &block[6], &block[11], &block[12])
+        execRound(&block[2], &block[7], &block[8], &block[13])
+        execRound(&block[3], &block[4], &block[9], &block[14])
     }
 
     for i, val := range initial_block {
