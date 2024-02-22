@@ -4,65 +4,63 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"net"
-
-    // "github.com/happy-files/auth"
+	// "github.com/happy-files/auth"
 )
 
 type Client struct {
-    Username, Nickname string
+    username, email string
     private_key rsa.PrivateKey
-    dest_public_key rsa.PublicKey
-    socket net.Conn
+    socket net.Conn // communicate with server
+    listener net.Listener // communicate with other clients
 }
 
-func (c *Client) NewDialog(dest_ip, dest_port string) {
+func (client *Client) HelloServer(dest_ip, dest_port string) {
     fmt.Println("Connecting to", dest_ip + ":" + dest_port, "...")
-    connection, err := net.Dial(CONN_TYPE, dest_ip + ":" + dest_port)
+    connection, err := net.Dial(TRANSFER_CONN_TYPE, dest_ip + ":" + dest_port)
 
     if err != nil {
         panic(err)
     }
 
     fmt.Println("Connection established")
-    c.socket = connection
+    client.socket = connection
 }
 
-func (c *Client) SignUp(passwd string) error {
-    // send (username, hpasswd, public key, nickname)
-    // hpasswd := auth.HashPasswd(passwd)
-    test := []byte{1}
-    test = append(test, ("|" + c.Username)...)
-    test = append(test, ("|" + c.Nickname)...)
-    test = append(test, ("|" + passwd)...)
-    fmt.Println(test)
-
-    c.socket.Write(test)
+func (client *Client) sync() error {
+    // sync whitelist and blacklist
     return nil
 }
 
-func (c *Client) LogIn(passwd string) error {
-    // get friends
-    // server will update (IP, port)
-    packet := []byte{LOG_IN}
-    packet = append(packet, passwd...)
-    c.socket.Write(packet)
+func (client *Client) getUserData(username string) error {
+    // get (IP, port) and public key of another user
     return nil
 }
 
-func (c *Client) getFriendData(friend_username string) (string, string, error) {
-    // ask server about friend's public key and (IP, port)
-    return "", "", nil
-}
-
-func (c *Client) SendFile(friend_username string, file_path string) error {
+func (client *Client) download(conn net.Conn) error {
+    // handles incoming packets: reads, decrypts and appends to file
     return nil
 }
 
-func (c *Client) GetFile() error {
-    // connection listener
+func (client *Client) updateServer() error {
+    // makes sure that server has the most recent (IP, port)
     return nil
 }
 
-func (c *Client) Close() error {
-    return c.socket.Close()
+func (client *Client) SignUp() error {
+    // sign up with data in config file
+    return nil
+}
+
+func (client *Client) Listen(port string) error {
+    // start listening on the port that was previously used to communicate with server
+    return nil
+}
+
+func (client *Client) Send(username, filepath string) error {
+    // encrypt and send selected file to the user
+    return nil
+}
+
+func (client *Client) Close() error {
+    return client.socket.Close()
 }

@@ -1,11 +1,13 @@
 package dialog
 
-const CONN_TYPE = "tcp"
+const TRANSFER_CONN_TYPE = "tcp"
+const SERVER_CONN_TYPE = "udp"
 const (
     SIGN_UP = 1
-    LOG_IN = 2
-    GET_INFO = 3
-    TRANSFER_REQUEST = 4
+    UPDATE = 2
+    SYNC = 3
+    GET_USER_DATA = 4
+    TRANSFER_REQUEST = 5
 )
 
 
