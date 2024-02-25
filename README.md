@@ -10,7 +10,7 @@ To see history of transfered files use `hf history [--received|--sent]`, by defa
 
 To enable/disable whitelist (only users from this list can communicate with you) use `hf whitelist -e|-d`; to add user(s) use `hf whitelist -a USERNAME...`; to remove user(s) use `hf whitelist -r USERNAME...`; to clear the whitelist use `hf whitelist -c`  
 
-To enable/disable blacklist (only users from this list can communicate with you) use `hf blacklist -e|-d`; to add user(s) use `hf blacklist -a USERNAME...`; to remove user(s) use `hf blacklist -r USERNAME...`; to clear the blacklist use `hf blacklist -c`  
+To enable/disable blacklist (users from this list can NOT communicate with you) use `hf blacklist -e|-d`; to add user(s) use `hf blacklist -a USERNAME...`; to remove user(s) use `hf blacklist -r USERNAME...`; to clear the blacklist use `hf blacklist -c`  
 
 To make changes in config use `hf config [-hsd] [-u USERNAME] [-k PRIVATE_KEY] [--server-ip IP] [--server-port PORT] [--server-public PUBLIC_KEY] [--download-path PATH]`,  
 -u Specify your username  
