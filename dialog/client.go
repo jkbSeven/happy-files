@@ -2,10 +2,12 @@ package dialog
 
 import (
 	"crypto/rsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"strconv"
 )
 
@@ -17,13 +19,64 @@ type Client struct {
     listener net.Listener // communicate with other clients
 }
 
-func NewClient(config string) (Client, error) {
-    fmt.Println("Reading JSON...")
+func readConfig(configPath string) (map[string]any, error) {
+    var config map[string]any
+
+    data, err := os.ReadFile(configPath)
+    if err != nil {
+        return config, err
+    }
+
+    err = json.Unmarshal(data, &config)
+    if err != nil {
+        return config, err
+    }
+
+    return config, nil
+}
+
+func WriteConfig(configPath, name string, value any) error {
+    config, err := readConfig(configPath)
+    if err != nil {
+        return err
+    }
+
+    config[name] = value
+    
+    data, err := json.Marshal(config)
+    if err != nil {
+        return err
+    }
+
+    err = os.WriteFile(configPath, data, 0644)
+    if err != nil {
+        return err
+    }
+
+    return nil
+}
+
+func NewClient(configPath string) (Client, error) {
+    config, err := readConfig(configPath)
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println(config)
+
     conn, err := net.Dial(SERVER_CONN_TYPE, ":13334")
     if err != nil {
         panic(err)
     }
-    client := Client{username: "user", email: "user@hf.go", socket: conn}
+
+    client := Client{
+        username: config["username"].(string),
+        email: config["email"].(string),
+        downloadPath: config["downloadPath"].(string),
+        //privateKey: config["privateKey"].(rsa.PrivateKey),
+        //serverPublicKey: config["serverPublicKey"].(rsa.PublicKey),
+        socket: conn}
+
     return client, nil
 }
 
@@ -83,7 +136,6 @@ func (client *Client) Listen(port string) error {
     if err != nil {
         panic(err)
     }
-    defer listener.Close()
 
     client.listener = listener
 
@@ -119,6 +171,22 @@ func (client *Client) Send(username, filepath string) error {
     return nil
 }
 
+func (client *Client) PrintConfig(configPath string) {
+    config, err := readConfig(configPath)
+    if err != nil {
+        panic(err)
+    }
+
+    for k, v := range config {
+        fmt.Println(k + ": " + v.(string))
+    }
+}
+
+
 func (client *Client) Close() error {
-    return client.socket.Close()
+    err := client.socket.Close()
+    if err != nil {
+        return err
+    }
+    return client.listener.Close()
 }
