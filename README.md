@@ -12,7 +12,7 @@ To enable/disable whitelist (only users from this list can communicate with you)
 
 To enable/disable blacklist (users from this list can NOT communicate with you) use `hf blacklist -e|-d`; to add user(s) use `hf blacklist -a USERNAME...`; to remove user(s) use `hf blacklist -r USERNAME...`; to clear the blacklist use `hf blacklist -c`  
 
-To make changes in config use `hf config [-hsd] [-u USERNAME] [-k PRIVATE_KEY] [--server-ip IP] [--server-port PORT] [--server-public PUBLIC_KEY] [--download-path PATH]`,  
+To make changes in config use `hf config [-hsd] [-u USERNAME] [-e EMAIL] [-k PRIVATE_KEY] [--server-ip IP] [--server-port PORT] [--server-public PUBLIC_KEY] [--download-path PATH]`,  
 -u Specify your username  
 -e Specify your email  
 -k Specify your private key  

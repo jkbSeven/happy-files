@@ -4,9 +4,10 @@ import (
     "crypto/sha256"
     "crypto/rsa"
     "encoding/hex"
+    // "fmt"
 )
 
-func HashPasswd(passwd string) string {
+func hashPasswd(passwd string) string {
     sha := sha256.New()
     sha.Write([]byte(passwd))
     hpasswd := sha.Sum(nil)

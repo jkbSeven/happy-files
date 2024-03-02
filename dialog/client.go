@@ -2,28 +2,33 @@ package dialog
 
 import (
 	"crypto/rsa"
+	"errors"
 	"fmt"
+	"log"
 	"net"
-	// "github.com/happy-files/auth"
+	"strconv"
 )
 
 type Client struct {
-    username, email string
-    private_key rsa.PrivateKey
+    username, email, downloadPath string
+    privateKey rsa.PrivateKey
+    serverPublicKey rsa.PublicKey
     socket net.Conn // communicate with server
     listener net.Listener // communicate with other clients
 }
 
-func (client *Client) HelloServer(dest_ip, dest_port string) {
-    fmt.Println("Connecting to", dest_ip + ":" + dest_port, "...")
-    connection, err := net.Dial(TRANSFER_CONN_TYPE, dest_ip + ":" + dest_port)
-
+func NewClient(config string) (Client, error) {
+    fmt.Println("Reading JSON...")
+    conn, err := net.Dial(SERVER_CONN_TYPE, ":13334")
     if err != nil {
         panic(err)
     }
+    client := Client{username: "user", email: "user@hf.go", socket: conn}
+    return client, nil
+}
 
-    fmt.Println("Connection established")
-    client.socket = connection
+func lockPort() error {
+    return nil
 }
 
 func (client *Client) sync() error {
@@ -38,6 +43,7 @@ func (client *Client) getUserData(username string) error {
 
 func (client *Client) download(conn net.Conn) error {
     // handles incoming packets: reads, decrypts and appends to file
+    defer conn.Close()
     return nil
 }
 
@@ -47,13 +53,65 @@ func (client *Client) updateServer() error {
 }
 
 func (client *Client) SignUp() error {
-    // sign up with data in config file
+    msg := msgBytes(SIGN_UP, client.username, client.email, strconv.Itoa(client.privateKey.PublicKey.E), client.privateKey.N.String())
+    fmt.Println("Sent:", string(msg), "-- Length:", len(msg))
+    sent, err := client.socket.Write(msg)
+    if err != nil {
+        panic(err)
+    }
+    
+    if sent != len(msg) {
+        log.Fatalf("Sent %d out of %d bytes during signup", sent, len(msg))
+    }
+
+    response := make([]byte, 2048)
+    _, err = client.socket.Read(response)
+
+    if err != nil {
+        panic(err)
+    }
+
+    // TODO: verify message signature
+    fmt.Println("Received:", string(response), "-- Length:", len(response))
+
     return nil
 }
 
 func (client *Client) Listen(port string) error {
     // start listening on the port that was previously used to communicate with server
-    return nil
+    listener, err := net.Listen(TRANSFER_CONN_TYPE, ":0")
+    if err != nil {
+        panic(err)
+    }
+    defer listener.Close()
+
+    client.listener = listener
+
+    for {
+        conn, err := listener.Accept()
+
+        if err != nil {
+            return err
+        }
+
+        // TODO: verify identity
+
+        msg := make([]byte, 1024)
+        read, err := conn.Read(msg)
+
+        if err != nil {
+            return err
+        }
+
+        if msg[0] != TRANSFER_REQUEST {
+            return errors.New("Message code was different then TRANSFER_REQUEST")
+        }
+
+        filename := string(msg[2:read])
+        fmt.Println("Downloading " + filename + "...")
+
+        go client.download(conn)
+    }
 }
 
 func (client *Client) Send(username, filepath string) error {

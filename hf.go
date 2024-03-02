@@ -5,11 +5,9 @@ import (
 )
 
 func main() {
-    var client dialog.Client
-
-    client.Username = "Username"
-    client.Nickname = "Nickname"
-
-    client.NewDialog("localhost", "13333")
-    client.SignUp("passwd")
+    client, err := dialog.NewClient("/dev/null")
+    if err != nil {
+        panic(err)
+    }
+    client.SignUp()
 }

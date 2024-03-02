@@ -5,65 +5,72 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 )
 
 type Server struct {
     private_key rsa.PrivateKey
-    listener net.Listener
 }
 
 func (s *Server) NewDialog(port string) {
-    listener, err := net.Listen(CONN_TYPE, ":" + port)
+    listener, err := net.Listen(SERVER_CONN_TYPE, ":" + port)
 
     if err != nil {
         panic(err)
     }
 
-    s.listener = listener
-    defer s.listener.Close()
+    defer listener.Close()
 
+    fmt.Println("Server is running on port", port)
     for {
-        fmt.Println("server: waiting for connection")
-        connection, err := s.listener.Accept()
+        conn, err := listener.Accept()
 
         if err != nil {
             fmt.Println("Error while accepting new connection:", err.Error())
             os.Exit(1)
         }
 
-        code := make([]byte, 1)
-        _, err = connection.Read(code)
+        msgCode := make([]byte, 1)
+        _, err = conn.Read(msgCode)
 
         if err != nil {
             panic(err)
         }
 
-        switch code[0] {
+        switch msgCode[0] {
         case 1:
-            go s.SignUp(connection)
-            
-        case 2:
-            go s.LogIn(connection)
+            go s.signUp(conn)
+        default:
+            fmt.Printf("Unknown message code: %d\n", msgCode[0])
         }
 
     }
 }
 
-func (s *Server) SignUp(connection net.Conn) error {
-    fmt.Println("server: proccessing SignUp for", connection.RemoteAddr().String()) 
-    rest := make([]byte, 1024)
-    _, err := connection.Read(rest)
+func (s *Server) signUp(conn net.Conn) error {
+    fmt.Println("Proccessing SignUp for", conn.RemoteAddr().String()) 
+    msg := make([]byte, 2048)
+
+    _, err := conn.Read(msg)
     if err != nil {
-        panic(err)
+        conn.Write(msgBytes(ERROR, err.Error()))
+        return err
     }
-    fmt.Println("server: rest of the message ->", string(rest))
+
+    userFields := strings.Split(string(msg[1:]), "|")
+    username, email, publicKeyE, publicKeyN := userFields[0], userFields[1], userFields[2], userFields[3]
+    conn.Write(msgBytes(SIGN_UP, username, email, publicKeyE, publicKeyN))
+    
+    // TODO: add to database
+    // err := sql.query(...)
+    // if err != nil ...
+
+
+    err = conn.Close()
+    if err != nil {
+        conn.Write(msgBytes(ERROR, err.Error()))
+        return err
+    }
     return nil
 }
 
-func (s *Server) LogIn(connection net.Conn) error {
-    return nil
-}
-
-func (s *Server) SendRecipientData() error {
-    return nil
-}
