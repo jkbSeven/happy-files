@@ -6,5 +6,5 @@ import (
 
 func main() {
     var server dialog.Server
-    server.NewDialog("13334")
+    server.NewDialog("42069")
 }

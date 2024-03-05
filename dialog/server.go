@@ -28,6 +28,8 @@ func (s *Server) NewDialog(port string) {
         if err != nil {
             fmt.Println("Error while accepting new connection:", err.Error())
             os.Exit(1)
+        } else {
+            fmt.Println("Accepted connection from:", conn.RemoteAddr().String())
         }
 
         msgCode := make([]byte, 1)

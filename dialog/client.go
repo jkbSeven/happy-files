@@ -3,19 +3,17 @@ package dialog
 import (
 	"crypto/rsa"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net"
 	"os"
-	"strconv"
 )
 
 type Client struct {
-    username, email, downloadPath string
+    username, email, downloadPath, serverIP, serverPort string
     privateKey rsa.PrivateKey
     serverPublicKey rsa.PublicKey
-    socket net.Conn // communicate with server
+    conn net.Conn // communicate with server
     listener net.Listener // communicate with other clients
 }
 
@@ -35,13 +33,27 @@ func readConfig(configPath string) (map[string]any, error) {
     return config, nil
 }
 
-func WriteConfig(configPath, name string, value any) error {
+func writeClientDefault(configPath string) error {
+    config := defaultClient
+
+    data, err := json.Marshal(config)
+    if err != nil {
+        return err
+    }
+
+    return os.WriteFile(configPath, data, 0644)
+}
+
+func WriteClient(configPath string, changes map[string]any) error {
     config, err := readConfig(configPath)
     if err != nil {
         return err
     }
 
-    config[name] = value
+    for k, v := range changes {
+        config[k] = v
+    }
+
     
     data, err := json.Marshal(config)
     if err != nil {
@@ -62,26 +74,21 @@ func NewClient(configPath string) (Client, error) {
         panic(err)
     }
 
-    fmt.Println(config)
+    client := Client{
+        username: config["username"].(string),
+        email: config["email"].(string),
+        downloadPath: config["download-path"].(string),
+        serverIP: config["server-ip"].(string),
+        serverPort: config["server-port"].(string),
+    }
 
-    conn, err := net.Dial(SERVER_CONN_TYPE, ":13334")
+    conn, err := net.Dial(SERVER_CONN_TYPE, client.serverIP + ":" + client.serverPort)
     if err != nil {
         panic(err)
     }
 
-    client := Client{
-        username: config["username"].(string),
-        email: config["email"].(string),
-        downloadPath: config["downloadPath"].(string),
-        //privateKey: config["privateKey"].(rsa.PrivateKey),
-        //serverPublicKey: config["serverPublicKey"].(rsa.PublicKey),
-        socket: conn}
-
+    client.conn = conn
     return client, nil
-}
-
-func lockPort() error {
-    return nil
 }
 
 func (client *Client) sync() error {
@@ -106,9 +113,8 @@ func (client *Client) updateServer() error {
 }
 
 func (client *Client) SignUp() error {
-    msg := msgBytes(SIGN_UP, client.username, client.email, strconv.Itoa(client.privateKey.PublicKey.E), client.privateKey.N.String())
-    fmt.Println("Sent:", string(msg), "-- Length:", len(msg))
-    sent, err := client.socket.Write(msg)
+    msg := msgBytes(SIGN_UP, client.username, client.email)
+    sent, err := client.conn.Write(msg)
     if err != nil {
         panic(err)
     }
@@ -117,27 +123,22 @@ func (client *Client) SignUp() error {
         log.Fatalf("Sent %d out of %d bytes during signup", sent, len(msg))
     }
 
-    response := make([]byte, 2048)
-    _, err = client.socket.Read(response)
-
-    if err != nil {
-        panic(err)
-    }
-
     // TODO: verify message signature
-    fmt.Println("Received:", string(response), "-- Length:", len(response))
 
     return nil
 }
 
-func (client *Client) Listen(port string) error {
-    // start listening on the port that was previously used to communicate with server
+func (client *Client) Listen() error {
     listener, err := net.Listen(TRANSFER_CONN_TYPE, ":0")
     if err != nil {
         panic(err)
     }
 
     client.listener = listener
+    listeningPort := listener.Addr().String()
+    fmt.Println("Listening on:", listeningPort)
+
+    // inform server about the port
 
     for {
         conn, err := listener.Accept()
@@ -148,19 +149,12 @@ func (client *Client) Listen(port string) error {
 
         // TODO: verify identity
 
-        msg := make([]byte, 1024)
+        msg := make([]byte, 3)
         read, err := conn.Read(msg)
 
         if err != nil {
             return err
         }
-
-        if msg[0] != TRANSFER_REQUEST {
-            return errors.New("Message code was different then TRANSFER_REQUEST")
-        }
-
-        filename := string(msg[2:read])
-        fmt.Println("Downloading " + filename + "...")
 
         go client.download(conn)
     }
@@ -180,12 +174,12 @@ func (client *Client) PrintConfig(configPath string) {
     for k, v := range config {
         fmt.Println(k + ": " + v.(string))
     }
+    fmt.Printf("\n")
 }
 
 
 func (client *Client) Close() error {
-    err := client.socket.Close()
-    if err != nil {
+    if err := client.conn.Close(); err != nil {
         return err
     }
     return client.listener.Close()

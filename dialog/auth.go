@@ -18,14 +18,3 @@ func hashPasswd(passwd string) string {
 func GenerateKeys(key_size int) (*rsa.PrivateKey, error) {
     return nil, nil
 }
-
-func (client *Client) handshakeInit(username string) error {
-    // client sends message (TRANSFER_REQUEST, username) and handles the rest of authentication
-    return nil
-}
-
-func (client *Client) handshakeRespond(username string) error {
-    // client got message (TRANSFER_REQUEST, username) and accepted it
-    // this function handles authentication
-    return nil
-}
