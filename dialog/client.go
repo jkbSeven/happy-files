@@ -17,24 +17,8 @@ type Client struct {
     listener net.Listener // communicate with other clients
 }
 
-func readConfig(configPath string) (map[string]any, error) {
-    var config map[string]any
-
-    data, err := os.ReadFile(configPath)
-    if err != nil {
-        return config, err
-    }
-
-    err = json.Unmarshal(data, &config)
-    if err != nil {
-        return config, err
-    }
-
-    return config, nil
-}
-
-func writeClientDefault(configPath string) error {
-    config := defaultClient
+func WriteDefaultClientConfig(configPath string) error {
+    config := defaultClientConfig
 
     data, err := json.Marshal(config)
     if err != nil {
@@ -42,30 +26,6 @@ func writeClientDefault(configPath string) error {
     }
 
     return os.WriteFile(configPath, data, 0644)
-}
-
-func WriteClient(configPath string, changes map[string]any) error {
-    config, err := readConfig(configPath)
-    if err != nil {
-        return err
-    }
-
-    for k, v := range changes {
-        config[k] = v
-    }
-
-    
-    data, err := json.Marshal(config)
-    if err != nil {
-        return err
-    }
-
-    err = os.WriteFile(configPath, data, 0644)
-    if err != nil {
-        return err
-    }
-
-    return nil
 }
 
 func NewClient(configPath string) (Client, error) {
@@ -91,14 +51,17 @@ func NewClient(configPath string) (Client, error) {
     return client, nil
 }
 
-func (client *Client) sync() error {
-    // sync whitelist and blacklist
+func (client *Client) AddUserToList(listType int, usernames... string) error {
     return nil
 }
 
-func (client *Client) getUserData(username string) error {
+func (client *Client) UsersFromList(listType int) ([]string, error) {
+    return []string{}, nil
+}
+
+func (client *Client) userData(username string) ([]string, error) {
     // get (IP, port) and public key of another user
-    return nil
+    return []string{}, nil
 }
 
 func (client *Client) download(conn net.Conn) error {
@@ -107,13 +70,16 @@ func (client *Client) download(conn net.Conn) error {
     return nil
 }
 
-func (client *Client) updateServer() error {
+func (client *Client) updateIP() error {
     // makes sure that server has the most recent (IP, port)
+    listeningAddr := client.listener.Addr().String()
+    msg := listeningAddr
+    fmt.Println(msg)
     return nil
 }
 
 func (client *Client) SignUp() error {
-    msg := msgBytes(SIGN_UP, client.username, client.email)
+    msg := genMsg(SIGN_UP, client.username, client.email)
     sent, err := client.conn.Write(msg)
     if err != nil {
         panic(err)
@@ -122,6 +88,8 @@ func (client *Client) SignUp() error {
     if sent != len(msg) {
         log.Fatalf("Sent %d out of %d bytes during signup", sent, len(msg))
     }
+
+    fmt.Println(msg)
 
     // TODO: verify message signature
 
@@ -155,6 +123,7 @@ func (client *Client) Listen() error {
         if err != nil {
             return err
         }
+        fmt.Println(read)
 
         go client.download(conn)
     }

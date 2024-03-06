@@ -32,19 +32,19 @@ func (s *Server) NewDialog(port string) {
             fmt.Println("Accepted connection from:", conn.RemoteAddr().String())
         }
 
-        msgCode := make([]byte, 1)
-        _, err = conn.Read(msgCode)
-
-        if err != nil {
-            panic(err)
-        }
-
-        switch msgCode[0] {
-        case 1:
-            go s.signUp(conn)
-        default:
-            fmt.Printf("Unknown message code: %d\n", msgCode[0])
-        }
+//        msgCode := make([]byte, 1)
+//        _, err = conn.Read(msgCode)
+//
+//        if err != nil {
+//            panic(err)
+//        }
+//
+//        switch msgCode[0] {
+//        case 1:
+//            go s.signUp(conn)
+//        default:
+//            fmt.Printf("Unknown message code: %d\n", msgCode[0])
+//        }
 
     }
 }
@@ -55,13 +55,13 @@ func (s *Server) signUp(conn net.Conn) error {
 
     _, err := conn.Read(msg)
     if err != nil {
-        conn.Write(msgBytes(ERROR, err.Error()))
+        conn.Write(genMsg(ERROR, err.Error()))
         return err
     }
 
     userFields := strings.Split(string(msg[1:]), "|")
     username, email, publicKeyE, publicKeyN := userFields[0], userFields[1], userFields[2], userFields[3]
-    conn.Write(msgBytes(SIGN_UP, username, email, publicKeyE, publicKeyN))
+    conn.Write(genMsg(SIGN_UP, username, email, publicKeyE, publicKeyN))
     
     // TODO: add to database
     // err := sql.query(...)
@@ -70,7 +70,7 @@ func (s *Server) signUp(conn net.Conn) error {
 
     err = conn.Close()
     if err != nil {
-        conn.Write(msgBytes(ERROR, err.Error()))
+        conn.Write(genMsg(ERROR, err.Error()))
         return err
     }
     return nil
