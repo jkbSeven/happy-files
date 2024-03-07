@@ -4,15 +4,13 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"net"
-	"os"
-	"strings"
 )
 
 type Server struct {
     private_key rsa.PrivateKey
 }
 
-func (s *Server) NewDialog(port string) {
+func (s *Server) Run(port string) {
     listener, err := net.Listen(SERVER_CONN_TYPE, ":" + port)
 
     if err != nil {
@@ -27,52 +25,63 @@ func (s *Server) NewDialog(port string) {
 
         if err != nil {
             fmt.Println("Error while accepting new connection:", err.Error())
-            os.Exit(1)
+            panic(err)
         } else {
             fmt.Println("Accepted connection from:", conn.RemoteAddr().String())
         }
 
-//        msgCode := make([]byte, 1)
-//        _, err = conn.Read(msgCode)
-//
-//        if err != nil {
-//            panic(err)
-//        }
-//
-//        switch msgCode[0] {
-//        case 1:
-//            go s.signUp(conn)
-//        default:
-//            fmt.Printf("Unknown message code: %d\n", msgCode[0])
-//        }
+        msgData := make([]byte, 3)
+
+        if _, err := conn.Read(msgData); err != nil {
+            panic(err)
+        }
+
+        msgCode := msgData[0]
+
+        initMsg := make([]byte, rLength(msgData[1:]))
+
+        if _, err := conn.Read(initMsg); err != nil {
+            panic(err)
+        }
+
+        switch msgCode {
+        case SIGN_UP:
+            go s.signUp(conn, initMsg)
+        default:
+            fmt.Printf("Unknown message code: %d\n", msgCode)
+        }
 
     }
 }
 
-func (s *Server) signUp(conn net.Conn) error {
+func (s *Server) signUp(conn net.Conn, initMsg []byte) error {
+    defer conn.Close()
+
     fmt.Println("Proccessing SignUp for", conn.RemoteAddr().String()) 
-    msg := make([]byte, 2048)
 
-    _, err := conn.Read(msg)
-    if err != nil {
-        conn.Write(genMsg(ERROR, err.Error()))
-        return err
-    }
+    start, end := 0, FIELD_PREFIX_LEN
 
-    userFields := strings.Split(string(msg[1:]), "|")
-    username, email, publicKeyE, publicKeyN := userFields[0], userFields[1], userFields[2], userFields[3]
-    conn.Write(genMsg(SIGN_UP, username, email, publicKeyE, publicKeyN))
-    
+    usernameLengthBytes := initMsg[start:end]
+    start = end
+    end += rLength(usernameLengthBytes)
+
+    username := string(initMsg[start:end])
+    start = end
+    end += FIELD_PREFIX_LEN
+
+    emailLengthBytes := initMsg[start:end]
+    start = end
+    end += rLength(emailLengthBytes)
+
+    email := string(initMsg[start:end])
+
+
+    fmt.Printf("username: " + username + "\nemail: " + email + "\n")
+
     // TODO: add to database
     // err := sql.query(...)
     // if err != nil ...
 
-
-    err = conn.Close()
-    if err != nil {
-        conn.Write(genMsg(ERROR, err.Error()))
-        return err
-    }
     return nil
 }
 

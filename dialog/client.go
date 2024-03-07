@@ -3,10 +3,11 @@ package dialog
 import (
 	"crypto/rsa"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"log"
 	"net"
 	"os"
+	"syscall"
 )
 
 type Client struct {
@@ -42,13 +43,49 @@ func NewClient(configPath string) (Client, error) {
         serverPort: config["server-port"].(string),
     }
 
+    return client, nil
+}
+
+func isAlive(conn net.Conn) bool {
+    if conn == nil {
+        return false
+    } else if _, err := conn.Write(genMsg(PING, "")); errors.Is(err, net.ErrClosed) || errors.Is(err, syscall.EPIPE) {
+        return false
+    }
+
+    return true
+}
+
+func isListening(listener net.Listener) bool {
+    if listener == nil {
+        return false
+    }
+
+    // this probably isn't the right way to do it - what if listener is created but not accepting?
+    if _, err := listener.Accept(); err != nil {
+        if OpErr, ok := err.(*net.OpError); ok && OpErr.Err.Error() == "use of closed network connection" {
+            return false
+        } else {
+            fmt.Println("Error in isListening(): " + err.Error())
+        }
+    }
+
+    return true
+}
+
+
+func (client *Client) connectWithServer() error {
+    if isAlive(client.conn) {
+        return nil
+    }
+
     conn, err := net.Dial(SERVER_CONN_TYPE, client.serverIP + ":" + client.serverPort)
     if err != nil {
-        panic(err)
+        return err
     }
 
     client.conn = conn
-    return client, nil
+    return nil
 }
 
 func (client *Client) AddUserToList(listType int, usernames... string) error {
@@ -64,34 +101,32 @@ func (client *Client) userData(username string) ([]string, error) {
     return []string{}, nil
 }
 
-func (client *Client) download(conn net.Conn) error {
+func (client *Client) download(conn net.Conn, initMsg []byte) error {
     // handles incoming packets: reads, decrypts and appends to file
     defer conn.Close()
+    fmt.Println("Downloading file...")
     return nil
 }
 
-func (client *Client) updateIP() error {
-    // makes sure that server has the most recent (IP, port)
+func (client *Client) updateServer() error {
+    if err := client.connectWithServer(); err != nil {
+        return err
+    }
+
     listeningAddr := client.listener.Addr().String()
-    msg := listeningAddr
-    fmt.Println(msg)
-    return nil
+    msg := genMsg(UPDATE_IP, client.username, listeningAddr)
+    _, err := client.conn.Write(msg)
+
+    return err
 }
 
 func (client *Client) SignUp() error {
+    client.connectWithServer()
+
     msg := genMsg(SIGN_UP, client.username, client.email)
-    sent, err := client.conn.Write(msg)
-    if err != nil {
-        panic(err)
+    if _, err := client.conn.Write(msg); err != nil {
+        return err
     }
-    
-    if sent != len(msg) {
-        log.Fatalf("Sent %d out of %d bytes during signup", sent, len(msg))
-    }
-
-    fmt.Println(msg)
-
-    // TODO: verify message signature
 
     return nil
 }
@@ -99,14 +134,16 @@ func (client *Client) SignUp() error {
 func (client *Client) Listen() error {
     listener, err := net.Listen(TRANSFER_CONN_TYPE, ":0")
     if err != nil {
-        panic(err)
+        return err
     }
 
     client.listener = listener
-    listeningPort := listener.Addr().String()
-    fmt.Println("Listening on:", listeningPort)
+    listeningAddr := listener.Addr().String()
+    fmt.Println("Listening on:", listeningAddr)
 
-    // inform server about the port
+    if err = client.updateServer(); err != nil {
+        return err
+    }
 
     for {
         conn, err := listener.Accept()
@@ -117,15 +154,28 @@ func (client *Client) Listen() error {
 
         // TODO: verify identity
 
-        msg := make([]byte, 3)
-        read, err := conn.Read(msg)
+        msgData := make([]byte, 3)
 
-        if err != nil {
+        if _, err := conn.Read(msgData); err != nil {
             return err
         }
-        fmt.Println(read)
 
-        go client.download(conn)
+        initMsg := make([]byte, rLength(msgData[1:]))
+
+        if _, err := conn.Read(initMsg); err != nil {
+            return err
+        }
+
+        msgCode := msgData[0]
+
+        switch msgCode {
+        case TRANSFER_REQUEST:
+            go client.download(conn, initMsg)
+
+        default:
+            fmt.Println("Unknown msg code:", msgCode)
+            conn.Close()
+        }
     }
 }
 

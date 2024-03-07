@@ -10,19 +10,22 @@ import (
 const TRANSFER_CONN_TYPE = "tcp"
 const SERVER_CONN_TYPE = "tcp"
 
+const FIELD_PREFIX_LEN = 2
+
 const (
-    BLACKLIST = 0
-    WHITELIST = 1
+    BLACKLIST = iota
+    WHITELIST
 )
 
 const (
-    ERROR = 0
-    SIGN_UP = 1
-    UPDATE_IP = 2
-    GET_USER_DATA = 3
-    TRANSFER_REQUEST = 4
-    GET_LIST = 5
-    UPDATE_LIST = 6
+    ERROR = iota
+    PING
+    SIGN_UP
+    UPDATE_IP
+    GET_USER_DATA
+    GET_LIST
+    UPDATE_LIST
+    TRANSFER_REQUEST
 )
 
 var defaultClientConfig = map[string]any{
@@ -46,6 +49,10 @@ func bLength(length int) []byte {
     return out
 }
 
+func rLength(length []byte) int {
+    return int(binary.BigEndian.Uint16(length))
+}
+
 func genMsg(code byte, fields... string) []byte {
     temp := []byte{}
     for _, v := range fields {
@@ -55,8 +62,8 @@ func genMsg(code byte, fields... string) []byte {
     }
     out := make([]byte, 3 + len(temp))
     msgbLen := bLength(len(temp))
-    out[0], out[1] = msgbLen[0], msgbLen[1]
-    out[2] = code
+    out[0] = code
+    out[1], out[2] = msgbLen[0], msgbLen[1]
     copy(out[3:], temp)
 
     return out
@@ -90,7 +97,7 @@ func readConfig(configPath string) (map[string]any, error) {
     return config, nil
 }
 
-func writeConfig(configPath string, changes map[string]any) error {
+func WriteConfig(configPath string, changes map[string]any) error {
     config, err := readConfig(configPath)
     if err != nil {
         return err
