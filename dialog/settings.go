@@ -1,9 +1,9 @@
 package dialog
 
 import (
-	"errors"
-    "encoding/binary"
+	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"os"
 )
 
@@ -11,6 +11,7 @@ const TRANSFER_CONN_TYPE = "tcp"
 const SERVER_CONN_TYPE = "tcp"
 
 const FIELD_PREFIX_LEN = 2
+const OPTIMAL_FIELD_COUNT = 3
 
 const (
     BLACKLIST = iota
@@ -44,7 +45,7 @@ var defaultServerConfig = map[string]any{
 }
 
 func bLength(length int) []byte {
-    out := make([]byte, 2)
+    out := make([]byte, FIELD_PREFIX_LEN)
     binary.BigEndian.PutUint16(out, uint16(length))
     return out
 }
@@ -60,7 +61,7 @@ func genMsg(code byte, fields... string) []byte {
         temp = append(temp, length...)
         temp = append(temp, v...)
     }
-    out := make([]byte, 3 + len(temp))
+    out := make([]byte, 1+ FIELD_PREFIX_LEN + len(temp))
     msgbLen := bLength(len(temp))
     out[0] = code
     out[1], out[2] = msgbLen[0], msgbLen[1]
@@ -69,9 +70,30 @@ func genMsg(code byte, fields... string) []byte {
     return out
 }
 
+func groupMsg(msg []byte) [][]byte {
+    msgLen := rLength(msg[:FIELD_PREFIX_LEN])
+    if msgLen < 1 {
+        return [][]byte{}
+    }
+
+    msg = msg[FIELD_PREFIX_LEN:]
+    msgFields := make([][]byte, 0, OPTIMAL_FIELD_COUNT)
+
+    for read := 0; read < msgLen; {
+        fieldLen := rLength(msg[:FIELD_PREFIX_LEN])
+        msg = msg[FIELD_PREFIX_LEN:] // gets rid of FIELD_PREFIX
+
+        msgFields = append(msgFields, msg[:fieldLen])
+        msg = msg[fieldLen:]
+        read += FIELD_PREFIX_LEN + fieldLen
+    }
+
+    return msgFields
+}
+
 func rPadWithZeros(field string, outLength int) ([]byte, error) {
-    fieldLength := len(field)
-    if outLength < fieldLength {
+    fieldLen := len(field)
+    if outLength < fieldLen {
         return []byte{}, errors.New("String is longer than the desired length")
     }
 

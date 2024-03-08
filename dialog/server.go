@@ -38,9 +38,10 @@ func (s *Server) Run(port string) {
 
         msgCode := msgData[0]
 
-        initMsg := make([]byte, rLength(msgData[1:]))
+        initMsg := make([]byte, rLength(msgData[1:]) + 2)
+        copy(initMsg, msgData[1:3])
 
-        if _, err := conn.Read(initMsg); err != nil {
+        if _, err := conn.Read(initMsg[2:]); err != nil {
             panic(err)
         }
 
@@ -59,24 +60,9 @@ func (s *Server) signUp(conn net.Conn, initMsg []byte) error {
 
     fmt.Println("Proccessing SignUp for", conn.RemoteAddr().String()) 
 
-    start, end := 0, FIELD_PREFIX_LEN
+    msgFields := groupMsg(initMsg)
 
-    usernameLengthBytes := initMsg[start:end]
-    start = end
-    end += rLength(usernameLengthBytes)
-
-    username := string(initMsg[start:end])
-    start = end
-    end += FIELD_PREFIX_LEN
-
-    emailLengthBytes := initMsg[start:end]
-    start = end
-    end += rLength(emailLengthBytes)
-
-    email := string(initMsg[start:end])
-
-
-    fmt.Printf("username: " + username + "\nemail: " + email + "\n")
+    fmt.Printf("username: " + string(msgFields[0]) + "\nemail: " + string(msgFields[1]) + "\n")
 
     // TODO: add to database
     // err := sql.query(...)

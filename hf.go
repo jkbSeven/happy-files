@@ -10,5 +10,5 @@ func main() {
         panic(err)
     }
     client.PrintConfig("./config.json")
-    client.Listen()
+    client.SignUp()
 }
