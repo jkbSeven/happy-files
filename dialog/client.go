@@ -49,7 +49,7 @@ func NewClient(configPath string) (Client, error) {
 func isAlive(conn net.Conn) bool {
     if conn == nil {
         return false
-    } else if _, err := conn.Write(genMsg(PING, "")); errors.Is(err, net.ErrClosed) || errors.Is(err, syscall.EPIPE) {
+    } else if _, err := conn.Write(genMsg(PING, PING_FIELD)); errors.Is(err, net.ErrClosed) || errors.Is(err, syscall.EPIPE) {
         return false
     }
 

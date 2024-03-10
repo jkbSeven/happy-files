@@ -29,6 +29,8 @@ const (
     TRANSFER_REQUEST
 )
 
+const PING_FIELD = ""
+
 var defaultClientConfig = map[string]any{
     "username": "",
     "email": "",
