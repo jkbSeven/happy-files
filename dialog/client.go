@@ -75,16 +75,13 @@ func isListening(listener net.Listener) bool {
 
 
 func (client *Client) connectWithServer() error {
-    if isAlive(client.conn) {
-        return nil
-    }
-
-    conn, err := net.Dial(SERVER_CONN_TYPE, client.serverIP + ":" + client.serverPort)
+    var err error
+    client.conn, err = net.Dial(SERVER_CONN_TYPE, client.serverIP + ":" + client.serverPort)
     if err != nil {
         return err
     }
+    fmt.Println("Connected to server", client.serverIP + ":" + client.serverPort)
 
-    client.conn = conn
     return nil
 }
 
@@ -104,49 +101,59 @@ func (client *Client) userData(username string) ([]string, error) {
 func (client *Client) download(conn net.Conn, initMsg []byte) error {
     // handles incoming packets: reads, decrypts and appends to file
     defer conn.Close()
-    fmt.Println("Downloading file...")
+    msgFields := groupMsg(initMsg, len(initMsg))
+    fmt.Println("Downloading file " + string(msgFields[0]) + "...")
     return nil
 }
 
 func (client *Client) updateServer() error {
-    if err := client.connectWithServer(); err != nil {
-        return err
+    if !isAlive(client.conn) {
+        if err := client.connectWithServer(); err != nil {
+            return err
+        }
     }
 
     listeningAddr := client.listener.Addr().String()
     msg := genMsg(UPDATE_IP, client.username, listeningAddr)
     _, err := client.conn.Write(msg)
+    
+    if err != nil {
+        return err
+    }
 
-    return err
+    return client.conn.Close()
 }
 
 func (client *Client) SignUp() error {
-    client.connectWithServer()
+    if !isAlive(client.conn) {
+        if err := client.connectWithServer(); err != nil {
+            return err
+        }
+    }
 
     msg := genMsg(SIGN_UP, client.username, client.email)
     if _, err := client.conn.Write(msg); err != nil {
         return err
     }
 
-    return nil
+    return client.conn.Close()
 }
 
 func (client *Client) Listen() error {
-    listener, err := net.Listen(TRANSFER_CONN_TYPE, ":0")
+    var err error
+    client.listener, err = net.Listen(TRANSFER_CONN_TYPE, ":0")
     if err != nil {
         return err
     }
 
-    client.listener = listener
-    listeningAddr := listener.Addr().String()
-    fmt.Println("Listening on:", listeningAddr)
+    fmt.Println("Listening on:", client.listener.Addr().String())
 
     if err = client.updateServer(); err != nil {
         return err
     }
 
     for {
-        conn, err := listener.Accept()
+        conn, err := client.listener.Accept()
 
         if err != nil {
             return err
@@ -155,25 +162,23 @@ func (client *Client) Listen() error {
         // TODO: verify identity
 
         msgData := make([]byte, 3)
-
         if _, err := conn.Read(msgData); err != nil {
             return err
         }
 
+        msgCode := msgData[0]
         initMsg := make([]byte, rLength(msgData[1:]))
 
         if _, err := conn.Read(initMsg); err != nil {
             return err
         }
 
-        msgCode := msgData[0]
-
         switch msgCode {
         case TRANSFER_REQUEST:
             go client.download(conn, initMsg)
 
         default:
-            fmt.Println("Unknown msg code:", msgCode)
+            fmt.Println("Unknown message code:", msgCode)
             conn.Close()
         }
     }

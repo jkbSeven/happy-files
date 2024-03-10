@@ -11,4 +11,5 @@ func main() {
     }
     client.PrintConfig("./config.json")
     client.SignUp()
+    client.Listen()
 }

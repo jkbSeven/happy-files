@@ -70,13 +70,7 @@ func genMsg(code byte, fields... string) []byte {
     return out
 }
 
-func groupMsg(msg []byte) [][]byte {
-    msgLen := rLength(msg[:FIELD_PREFIX_LEN])
-    if msgLen < 1 {
-        return [][]byte{}
-    }
-
-    msg = msg[FIELD_PREFIX_LEN:]
+func groupMsg(msg []byte, msgLen int) [][]byte {
     msgFields := make([][]byte, 0, OPTIMAL_FIELD_COUNT)
 
     for read := 0; read < msgLen; {
