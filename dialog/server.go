@@ -8,9 +8,11 @@ import (
 
 type Server struct {
     private_key rsa.PrivateKey
+    users map[string]string
 }
 
 func (server *Server) Run(port string) {
+    server.users = make(map[string]string)
     listener, err := net.Listen(SERVER_CONN_TYPE, ":" + port)
 
     if err != nil {
@@ -30,24 +32,31 @@ func (server *Server) Run(port string) {
             fmt.Println("Accepted connection from:", conn.RemoteAddr().String())
         }
 
-        msgData := make([]byte, 3)
+//        msgData := make([]byte, 3)
+//
+//        if _, err := conn.Read(msgData); err != nil {
+//            panic(err)
+//        }
+//
+//        msgCode := msgData[0]
+//        initMsg := make([]byte, rLength(msgData[1:]))
+//
+//        if _, err := conn.Read(initMsg); err != nil {
+//            panic(err)
+//        }
 
-        if _, err := conn.Read(msgData); err != nil {
-            panic(err)
-        }
-
-        msgCode := msgData[0]
-        initMsg := make([]byte, rLength(msgData[1:]))
-
-        if _, err := conn.Read(initMsg); err != nil {
+        msgCode, response, err := readMsg(conn)
+        if err != nil {
             panic(err)
         }
 
         switch msgCode {
         case SIGN_UP:
-            go server.signUp(conn, initMsg)
+            go server.signUp(conn, response)
         case UPDATE_IP:
-            go server.updateClient(conn, initMsg)
+            go server.updateClient(conn, response)
+        case GET_USER_DATA:
+            go server.userData(conn, response)
         default:
             fmt.Printf("Unknown message code: %d\n", msgCode)
         }
@@ -55,12 +64,12 @@ func (server *Server) Run(port string) {
     }
 }
 
-func (server*Server) signUp(conn net.Conn, initMsg []byte) error {
+func (server*Server) signUp(conn net.Conn, msg []byte) error {
     defer conn.Close()
 
     fmt.Println("Proccessing SignUp for", conn.RemoteAddr().String()) 
 
-    msgFields := groupMsg(initMsg, len(initMsg))
+    msgFields := groupMsg(msg, len(msg))
     fmt.Printf("username: " + string(msgFields[0]) + "\nemail: " + string(msgFields[1]) + "\n")
 
     // TODO: add to database
@@ -70,17 +79,28 @@ func (server*Server) signUp(conn net.Conn, initMsg []byte) error {
     return nil
 }
 
-func (server *Server) updateClient(conn net.Conn, initMsg []byte) error {
-    // testing purposes, not the real functionality of this func
-    msgFields := groupMsg(initMsg, len(initMsg))
-    addr := string(msgFields[1])
+func (server *Server) updateClient(conn net.Conn, msg []byte) error {
+    msgFields := groupMsg(msg, len(msg))
+    username, addr := string(msgFields[0]), string(msgFields[1])
+    server.users[username] = addr
 
-    sendconn, err := net.Dial(TRANSFER_CONN_TYPE, addr)
-    if err != nil {
+    return nil
+}
+
+func (server *Server) userData(conn net.Conn, msg []byte) error {
+    msgFields := groupMsg(msg, len(msg))
+    _, dest := string(msgFields[0]), string(msgFields[1])
+
+    destIP, ok := server.users[dest]
+    if !ok {
+        response := genMsg(ERROR, "User does not exist")
+        conn.Write(response)
+        return conn.Close()
+    }
+
+    response := genMsg(GET_USER_DATA, destIP)
+    if _, err := conn.Write(response); err != nil {
         return err
     }
-    defer sendconn.Close()
-    sendconn.Write(genMsg(TRANSFER_REQUEST, "test.txt"))
-    
-    return nil
+    return conn.Close()
 }

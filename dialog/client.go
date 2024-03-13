@@ -21,7 +21,7 @@ type Client struct {
 func WriteDefaultClientConfig(configPath string) error {
     config := defaultClientConfig
 
-    data, err := json.Marshal(config)
+    data, err := json.MarshalIndent(config, "", "\t")
     if err != nil {
         return err
     }
@@ -110,7 +110,7 @@ func (client *Client) download(conn net.Conn, initMsg []byte) error {
     // handles incoming packets: reads, decrypts and appends to file
     defer conn.Close()
     msgFields := groupMsg(initMsg, len(initMsg))
-    fmt.Println("Downloading file " + string(msgFields[0]) + "...")
+    fmt.Println("Downloading file " + string(msgFields[1]) + " from " + string(msgFields[0]) + " (size: " + string(msgFields[2]) + ")")
     return nil
 }
 
@@ -169,21 +169,14 @@ func (client *Client) Listen() error {
 
         // TODO: verify identity
 
-        msgData := make([]byte, 3)
-        if _, err := conn.Read(msgData); err != nil {
-            return err
-        }
-
-        msgCode := msgData[0]
-        initMsg := make([]byte, rLength(msgData[1:]))
-
-        if _, err := conn.Read(initMsg); err != nil {
+        msgCode, response, err := readMsg(conn)
+        if err != nil {
             return err
         }
 
         switch msgCode {
         case TRANSFER_REQUEST:
-            go client.download(conn, initMsg)
+            go client.download(conn, response)
 
         default:
             fmt.Println("Unknown message code:", msgCode)
@@ -195,10 +188,11 @@ func (client *Client) Listen() error {
 func (client *Client) Send(username, filepath string) error {
     userData, err := client.userData(username)
     if err != nil {
+        fmt.Println(err)
         return err
     }
 
-    destAddr := string(userData[0]) + ":" + string(userData[1])
+    destAddr := string(userData[0])
     // destPubKey := userData[2]
 
     conn, err := net.Dial(TRANSFER_CONN_TYPE, destAddr)

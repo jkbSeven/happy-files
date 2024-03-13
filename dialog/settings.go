@@ -151,7 +151,7 @@ func WriteConfig(configPath string, changes map[string]any) error {
     }
 
     
-    data, err := json.Marshal(config)
+    data, err := json.MarshalIndent(config, "", "\t")
     if err != nil {
         return err
     }
