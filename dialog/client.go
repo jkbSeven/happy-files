@@ -56,24 +56,6 @@ func isAlive(conn net.Conn) bool {
     return true
 }
 
-func isListening(listener net.Listener) bool {
-    if listener == nil {
-        return false
-    }
-
-    // this probably isn't the right way to do it - what if listener is created but not accepting?
-    if _, err := listener.Accept(); err != nil {
-        if OpErr, ok := err.(*net.OpError); ok && OpErr.Err.Error() == "use of closed network connection" {
-            return false
-        } else {
-            fmt.Println("Error in isListening(): " + err.Error())
-        }
-    }
-
-    return true
-}
-
-
 func (client *Client) connectWithServer() error {
     var err error
     client.conn, err = net.Dial(SERVER_CONN_TYPE, client.serverIP + ":" + client.serverPort)
@@ -93,9 +75,35 @@ func (client *Client) UsersFromList(listType int) ([]string, error) {
     return []string{}, nil
 }
 
-func (client *Client) userData(username string) ([]string, error) {
-    // get (IP, port) and public key of another user
-    return []string{}, nil
+func (client *Client) userData(username string) ([][]byte, error) {
+    if !isAlive(client.conn) {
+        if err := client.connectWithServer(); err != nil {
+            return [][]byte{}, err
+        }
+    }
+    
+    msg := genMsg(GET_USER_DATA, client.username, username)
+    if _, err := client.conn.Write(msg); err != nil {
+        return [][]byte{}, err
+    }
+
+    msgCode, msg, err := readMsg(client.conn)
+    
+    if err != nil {
+        return [][]byte{}, err
+    }
+
+    if msgCode == ERROR {
+        return [][]byte{}, errors.New("Error getting user data: " + string(groupMsg(msg, len(msg))[0]))
+    } else if msgCode != GET_USER_DATA {
+        return [][]byte{}, errors.New("Could not get proper response from the server")
+    }
+
+    msgFields := groupMsg(msg, len(msg))
+    data := make([][]byte, 3)
+    copy(data, msgFields[:3])
+
+    return data, nil
 }
 
 func (client *Client) download(conn net.Conn, initMsg []byte) error {
@@ -185,7 +193,38 @@ func (client *Client) Listen() error {
 }
 
 func (client *Client) Send(username, filepath string) error {
-    // encrypt and send selected file to the user
+    userData, err := client.userData(username)
+    if err != nil {
+        return err
+    }
+
+    destAddr := string(userData[0]) + ":" + string(userData[1])
+    // destPubKey := userData[2]
+
+    conn, err := net.Dial(TRANSFER_CONN_TYPE, destAddr)
+    if err != nil {
+        return err
+    }
+
+    msg := genMsg(TRANSFER_REQUEST, client.username, "testfile.txt", "1KB")
+    if _, err := conn.Write(msg); err != nil {
+        return err
+    }
+
+    msgCode, _, err := readMsg(conn)
+    if err != nil {
+        return err
+    } else if msgCode != TRANSFER_ACCEPTED {
+        return errors.New("User denied file transfer")
+    }
+
+    // TODO: for loop that reads from file and writes to socket
+
+    file := genMsg(TRANSFER, "this is the file")
+    if _, err := conn.Write(file); err != nil {
+        return err
+    }
+
     return nil
 }
 
@@ -203,8 +242,10 @@ func (client *Client) PrintConfig(configPath string) {
 
 
 func (client *Client) Close() error {
-    if err := client.conn.Close(); err != nil {
-        return err
+    if isAlive(client.conn) {
+        if err := client.conn.Close(); err != nil {
+            return err
+        }
     }
     return client.listener.Close()
 }

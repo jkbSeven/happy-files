@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+    "net"
 )
 
 const TRANSFER_CONN_TYPE = "tcp"
@@ -27,6 +28,8 @@ const (
     GET_LIST
     UPDATE_LIST
     TRANSFER_REQUEST
+    TRANSFER_ACCEPTED
+    TRANSFER
 )
 
 const PING_FIELD = ""
@@ -70,6 +73,28 @@ func genMsg(code byte, fields... string) []byte {
     copy(out[3:], temp)
 
     return out
+}
+
+func readMsg(conn net.Conn) (byte, []byte, error) {
+    msgData := make([]byte, 1 + FIELD_PREFIX_LEN)
+    if _, err := conn.Read(msgData); err != nil {
+        return 0, []byte{}, err
+    }
+
+    msgCode := msgData[0]
+    msgLen := rLength(msgData[1:])
+
+    if msgLen < 1 {
+        return msgCode, []byte{}, nil
+    }
+
+    msg := make([]byte, rLength(msgData[1:]))
+
+    if _, err := conn.Read(msg); err != nil {
+        return 0, []byte{}, err
+    }
+
+    return msgCode, msg, nil
 }
 
 func groupMsg(msg []byte, msgLen int) [][]byte {
