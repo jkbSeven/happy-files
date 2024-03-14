@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/happy-files/dialog"
+	"github.com/jkbSeven/happy-files/dialog"
 )
 
 func main() {

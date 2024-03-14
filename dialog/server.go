@@ -32,19 +32,6 @@ func (server *Server) Run(port string) {
             fmt.Println("Accepted connection from:", conn.RemoteAddr().String())
         }
 
-//        msgData := make([]byte, 3)
-//
-//        if _, err := conn.Read(msgData); err != nil {
-//            panic(err)
-//        }
-//
-//        msgCode := msgData[0]
-//        initMsg := make([]byte, rLength(msgData[1:]))
-//
-//        if _, err := conn.Read(initMsg); err != nil {
-//            panic(err)
-//        }
-
         msgCode, response, err := readMsg(conn)
         if err != nil {
             panic(err)
@@ -53,6 +40,8 @@ func (server *Server) Run(port string) {
         switch msgCode {
         case SIGN_UP:
             go server.signUp(conn, response)
+        case PING:
+            go respondPing(conn)
         case UPDATE_IP:
             go server.updateClient(conn, response)
         case GET_USER_DATA:
@@ -64,7 +53,7 @@ func (server *Server) Run(port string) {
     }
 }
 
-func (server*Server) signUp(conn net.Conn, msg []byte) error {
+func (server *Server) signUp(conn net.Conn, msg []byte) error {
     defer conn.Close()
 
     fmt.Println("Proccessing SignUp for", conn.RemoteAddr().String()) 
@@ -89,7 +78,7 @@ func (server *Server) updateClient(conn net.Conn, msg []byte) error {
 
 func (server *Server) userData(conn net.Conn, msg []byte) error {
     msgFields := groupMsg(msg, len(msg))
-    _, dest := string(msgFields[0]), string(msgFields[1])
+    dest := string(msgFields[1])
 
     destIP, ok := server.users[dest]
     if !ok {

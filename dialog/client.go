@@ -46,16 +46,6 @@ func NewClient(configPath string) (Client, error) {
     return client, nil
 }
 
-func isAlive(conn net.Conn) bool {
-    if conn == nil {
-        return false
-    } else if _, err := conn.Write(genMsg(PING, PING_FIELD)); errors.Is(err, net.ErrClosed) || errors.Is(err, syscall.EPIPE) {
-        return false
-    }
-
-    return true
-}
-
 func (client *Client) connectWithServer() error {
     var err error
     client.conn, err = net.Dial(SERVER_CONN_TYPE, client.serverIP + ":" + client.serverPort)

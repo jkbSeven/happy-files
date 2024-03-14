@@ -2,52 +2,10 @@ package dialog
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"errors"
-	"os"
-    "net"
+	"net"
+	"syscall"
 )
-
-const TRANSFER_CONN_TYPE = "tcp"
-const SERVER_CONN_TYPE = "tcp"
-
-const FIELD_PREFIX_LEN = 2
-const OPTIMAL_FIELD_COUNT = 3
-
-const (
-    BLACKLIST = iota
-    WHITELIST
-)
-
-const (
-    ERROR = iota
-    PING
-    SIGN_UP
-    UPDATE_IP
-    GET_USER_DATA
-    GET_LIST
-    UPDATE_LIST
-    TRANSFER_REQUEST
-    TRANSFER_ACCEPTED
-    TRANSFER
-)
-
-const PING_FIELD = ""
-
-var defaultClientConfig = map[string]any{
-    "username": "",
-    "email": "",
-    "private-key": "",
-    "server-ip": "localhost",
-    "server-port": "13333",
-    "server-public": "",
-    "download-path": "~/Downloads",
-}
-
-var defaultServerConfig = map[string]any{
-    "private-key": "",
-    "db-path": "./hf.db",
-}
 
 func bLength(length int) []byte {
     out := make([]byte, FIELD_PREFIX_LEN)
@@ -55,8 +13,18 @@ func bLength(length int) []byte {
     return out
 }
 
-func rLength(length []byte) int {
+func nLength(length []byte) int {
     return int(binary.BigEndian.Uint16(length))
+}
+
+func isAlive(conn net.Conn) bool {
+    if conn == nil {
+        return false
+    } else if err := ping(conn); errors.Is(err, net.ErrClosed) || errors.Is(err, syscall.EPIPE) {
+        return false
+    }
+
+    return true
 }
 
 func genMsg(code byte, fields... string) []byte {
@@ -82,13 +50,13 @@ func readMsg(conn net.Conn) (byte, []byte, error) {
     }
 
     msgCode := msgData[0]
-    msgLen := rLength(msgData[1:])
+    msgLen := nLength(msgData[1:])
 
     if msgLen < 1 {
         return msgCode, []byte{}, nil
     }
 
-    msg := make([]byte, rLength(msgData[1:]))
+    msg := make([]byte, nLength(msgData[1:]))
 
     if _, err := conn.Read(msg); err != nil {
         return 0, []byte{}, err
@@ -101,7 +69,7 @@ func groupMsg(msg []byte, msgLen int) [][]byte {
     msgFields := make([][]byte, 0, OPTIMAL_FIELD_COUNT)
 
     for read := 0; read < msgLen; {
-        fieldLen := rLength(msg[:FIELD_PREFIX_LEN])
+        fieldLen := nLength(msg[:FIELD_PREFIX_LEN])
         msg = msg[FIELD_PREFIX_LEN:] // gets rid of FIELD_PREFIX
         if fieldLen < 1 {
             msgFields = append(msgFields, []byte{})
@@ -129,43 +97,26 @@ func rPadWithZeros(field string, outLength int) ([]byte, error) {
     return out, nil
 }
 
-func readConfig(configPath string) (map[string]any, error) {
-    var config map[string]any
-
-    data, err := os.ReadFile(configPath)
-    if err != nil {
-        return config, err
-    }
-
-    err = json.Unmarshal(data, &config)
-    if err != nil {
-        return config, err
-    }
-
-    return config, nil
-}
-
-func WriteConfig(configPath string, changes map[string]any) error {
-    config, err := readConfig(configPath)
-    if err != nil {
+func ping(conn net.Conn) error {
+    msg := genMsg(PING, PING_FIELD)
+    if _, err := conn.Write(msg); err != nil {
         return err
     }
 
-    for k, v := range changes {
-        config[k] = v
-    }
-
-    
-    data, err := json.MarshalIndent(config, "", "\t")
+    msgCode, _, err := readMsg(conn)
     if err != nil {
         return err
-    }
-
-    err = os.WriteFile(configPath, data, 0644)
-    if err != nil {
-        return err
+    } else if msgCode != PING {
+        return errors.New("Invalid response to ping")
     }
 
     return nil
 }
 
+func respondPing(conn net.Conn) error {
+    msg := genMsg(PING, PING_FIELD)
+    if _, err := conn.Write(msg); err != nil {
+        return err
+    }
+    return nil
+}
