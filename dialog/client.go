@@ -110,8 +110,26 @@ func (client *Client) download(conn net.Conn, initMsg []byte) error {
     // handles incoming packets: reads, decrypts and appends to file
     defer conn.Close()
     msgFields := groupMsg(initMsg, len(initMsg))
-    fmt.Println("Downloading file " + string(msgFields[1]) + " from " + string(msgFields[0]) + " (size: " + string(msgFields[2]) + ")")
-    return nil
+    fmt.Println("Downloading file " + string(msgFields[1]) + " from " + string(msgFields[0]) + " (size: " + string(msgFields[2]) + " MB)")
+
+    msg := genMsg(TRANSFER_ACCEPTED, PING_FIELD)
+    if _, err := conn.Write(msg); err != nil {
+        return err
+    }
+
+    for {
+        msgCode, response, err := readMsg(conn)
+        if err != nil {
+            return err
+        }
+        
+        if msgCode != TRANSFER {
+            return errors.New("Download was interrupted by a packet with a wrong message code")
+        }
+
+        msgFields := groupMsg(response, len(response))
+        fmt.Println(string(msgFields[0]))
+    }
 }
 
 func (client *Client) updateServer() error {
@@ -186,6 +204,22 @@ func (client *Client) Listen() error {
 }
 
 func (client *Client) Send(username, filepath string) error {
+    file, err := os.Open(filepath)
+    if err != nil {
+        return err
+    }
+    defer file.Close()
+
+    fileStat, err := file.Stat()
+    if err != nil {
+        return err
+    }
+
+    fileName := fileStat.Name()
+    fileSize := fileStat.Size()
+    fileSizeMB := int64(float64(fileSize) / 1_000_000)
+    fileSizeMBstring := fmt.Sprintf("%d", fileSizeMB)
+
     userData, err := client.userData(username)
     if err != nil {
         fmt.Println(err)
@@ -200,7 +234,7 @@ func (client *Client) Send(username, filepath string) error {
         return err
     }
 
-    msg := genMsg(TRANSFER_REQUEST, client.username, "testfile.txt", "1KB")
+    msg := genMsg(TRANSFER_REQUEST, client.username, fileName, fileSizeMBstring)
     if _, err := conn.Write(msg); err != nil {
         return err
     }
@@ -212,11 +246,19 @@ func (client *Client) Send(username, filepath string) error {
         return errors.New("User denied file transfer")
     }
 
-    // TODO: for loop that reads from file and writes to socket
+    for sent := 0; sent < int(fileSize); {
+        fileChunk := make([]byte, 512)
+        read, err := file.Read(fileChunk)
+        if err != nil {
+            return err
+        }
+        
+        fileChunkMsg := genMsg(TRANSFER, string(fileChunk[:read]))
+        if _, err := conn.Write(fileChunkMsg); err != nil {
+            return err
+        }
 
-    file := genMsg(TRANSFER, "this is the file")
-    if _, err := conn.Write(file); err != nil {
-        return err
+        sent += read
     }
 
     return nil
