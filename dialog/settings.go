@@ -103,6 +103,11 @@ func groupMsg(msg []byte, msgLen int) [][]byte {
     for read := 0; read < msgLen; {
         fieldLen := rLength(msg[:FIELD_PREFIX_LEN])
         msg = msg[FIELD_PREFIX_LEN:] // gets rid of FIELD_PREFIX
+        if fieldLen < 1 {
+            msgFields = append(msgFields, []byte{})
+            read += FIELD_PREFIX_LEN
+            continue
+        }
 
         msgFields = append(msgFields, msg[:fieldLen])
         msg = msg[fieldLen:]
