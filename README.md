@@ -21,3 +21,24 @@ To make changes in config use `hf config [-hsd] [-u USERNAME] [-e EMAIL] [-k PRI
 -d Restore config to deafult
 
 If you make changes to the configuration while happy-files client is already running, you need to restart it - changes aren't automatically applied.  
+
+
+## Roadmap
+1. Basic peer2peer file transfer ✓
+    * basic message structure with field size prefixes ✓
+    * verifying message codes ✓
+    * listening for transfer and updating server with client's currently opened port ✓
+    * sending a stream of bytes from file ✓
+3. Full encryption and identity verifaction
+    * update structure of messages to include signatures, session keys etc.
+    * implementation of chacha20
+    * implementation of poly1305
+    * RSA signatures and transfer handshake
+4. Logging and collecting transfer history
+5. UPnP (+ TCP hole punching?)
+    * add entry to router's NA(P)T table with client's current listening port
+6. Basic CLI
+    * implement commands listed in client section above
+    * implement commands for launching and configuring the server
+7. TUI with BubbleTea
+    * provide more user friendly experience than regular cli
