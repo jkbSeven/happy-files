@@ -87,7 +87,7 @@ func (server *Server) userData(conn net.Conn, msg []byte) error {
         return conn.Close()
     }
 
-    response := genMsg(GET_USER_DATA, destIP)
+    response := genMsg(USER_DATA, destIP)
     if _, err := conn.Write(response); err != nil {
         return err
     }

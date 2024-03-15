@@ -2,6 +2,7 @@ package dialog
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 )
 
@@ -60,3 +61,14 @@ func WriteConfig(configPath string, changes map[string]any) error {
     return nil
 }
 
+func PrintConfig(configPath string) {
+    config, err := readConfig(configPath)
+    if err != nil {
+        panic(err)
+    }
+
+    for k, v := range config {
+        fmt.Println(k + ": " + v.(string))
+    }
+    fmt.Printf("\n")
+}

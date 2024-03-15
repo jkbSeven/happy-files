@@ -9,7 +9,6 @@ func main() {
     if err != nil {
         panic(err)
     }
-    client.PrintConfig("./config.json")
     client.SignUp()
     client.Listen()
 }

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"syscall"
 )
 
 type Client struct {
@@ -85,13 +84,13 @@ func (client *Client) userData(username string) ([][]byte, error) {
 
     if msgCode == ERROR {
         return [][]byte{}, errors.New("Error getting user data: " + string(groupMsg(msg, len(msg))[0]))
-    } else if msgCode != GET_USER_DATA {
-        return [][]byte{}, errors.New("Could not get proper response from the server")
+    } else if msgCode != USER_DATA {
+        return [][]byte{}, &MsgTypeErr{received: msgCode, expected: USER_DATA, operation: "client.userData()"}
     }
 
     msgFields := groupMsg(msg, len(msg))
-    data := make([][]byte, 3)
-    copy(data, msgFields[:3])
+    data := make([][]byte, len(msgFields))
+    copy(data, msgFields)
 
     return data, nil
 }
@@ -207,8 +206,8 @@ func (client *Client) Send(username, filepath string) error {
 
     fileName := fileStat.Name()
     fileSize := fileStat.Size()
-    fileSizeMB := int64(float64(fileSize) / 1_000_000)
-    fileSizeMBstring := fmt.Sprintf("%d", fileSizeMB)
+    fileSizeKB := int64(float64(fileSize) / 1000)
+    fileSizeKBstring := fmt.Sprintf("%d", fileSizeKB)
 
     userData, err := client.userData(username)
     if err != nil {
@@ -224,7 +223,7 @@ func (client *Client) Send(username, filepath string) error {
         return err
     }
 
-    msg := genMsg(TRANSFER_REQUEST, client.username, fileName, fileSizeMBstring)
+    msg := genMsg(TRANSFER_REQUEST, client.username, fileName, fileSizeKBstring)
     if _, err := conn.Write(msg); err != nil {
         return err
     }
@@ -253,19 +252,6 @@ func (client *Client) Send(username, filepath string) error {
 
     return nil
 }
-
-func (client *Client) PrintConfig(configPath string) {
-    config, err := readConfig(configPath)
-    if err != nil {
-        panic(err)
-    }
-
-    for k, v := range config {
-        fmt.Println(k + ": " + v.(string))
-    }
-    fmt.Printf("\n")
-}
-
 
 func (client *Client) Close() error {
     if isAlive(client.conn) {

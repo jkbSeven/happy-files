@@ -1,9 +1,18 @@
 package dialog
 
-import "fmt"
+import (
+	"fmt"
+)
 
-const TRANSFER_CONN_TYPE = "tcp"
-const SERVER_CONN_TYPE = "tcp"
+const (
+    TRANSFER_CONN_TYPE = "tcp"
+    SERVER_CONN_TYPE = "tcp"
+)
+
+const (
+    CLIENT = iota
+    SERVER
+)
 
 const FIELD_PREFIX_LEN = 2
 const OPTIMAL_FIELD_COUNT = 3
@@ -19,6 +28,7 @@ const (
     SIGN_UP
     UPDATE_IP
     GET_USER_DATA
+    USER_DATA
     GET_LIST
     UPDATE_LIST
     TRANSFER_REQUEST
@@ -34,7 +44,7 @@ type MsgTypeErr struct {
 }
 
 func (e *MsgTypeErr) Error() string {
-    return fmt.Sprintf("Got %d code instead of %d code while in %s", e.received, e.expected, e.operation)
+    return fmt.Sprintf("error: Got message code %d instead of %d while in %s", e.received, e.expected, e.operation)
 }
 
 func (e *MsgTypeErr) Is(target error) bool {
