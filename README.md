@@ -34,11 +34,13 @@ If you make changes to the configuration while happy-files client is already run
     * implementation of chacha20
     * implementation of poly1305
     * RSA signatures and transfer handshake
-4. Logging and collecting transfer history
-5. UPnP (+ TCP hole punching?)
+4. Improve error handling
+5. Server side database with users' data
+6. Logging and collecting transfer history
+7. UPnP (+ TCP hole punching?)
     * add entry to router's NA(P)T table with client's current listening port
-6. Basic CLI
+8. Basic CLI
     * implement commands listed in client section above
     * implement commands for launching and configuring the server
-7. TUI with BubbleTea
+9. TUI with BubbleTea
     * provide more user friendly experience than regular cli
