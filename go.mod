@@ -1,6 +1,6 @@
 module github.com/jkbSeven/happy-files
 
-go 1.21.6
+go 1.22.1
 
 require (
         // github.com/jkbSeven/happy-files/auth v1.0.0
