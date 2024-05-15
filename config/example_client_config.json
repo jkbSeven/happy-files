@@ -1,0 +1,10 @@
+{
+    "Username": "user",
+    "Email": "user@hf.go",
+    "PrivateKey": "../id",
+    "PublicKey": "../id.pub",
+    "StoreHistory": true,
+    "DownloadPath": "~/Downloads",
+    "ServerIP": "127.0.0.1:37377",
+    "ServerPublicKey": "../id.server"
+}
