@@ -136,7 +136,7 @@ func parsePublicKey(path string) (*rsa.PublicKey, error) {
     return publicKey, err
 }
 
-func MarshalPrivateKey(key *rsa.PrivateKey) string {
+func marshalPrivateKey(key *rsa.PrivateKey) string {
     pemKeyBytes := x509.MarshalPKCS1PrivateKey(key)
     pemKey := pem.EncodeToMemory(&pem.Block{
         Type: "RSA PRIVATE KEY",
@@ -146,7 +146,7 @@ func MarshalPrivateKey(key *rsa.PrivateKey) string {
     return string(pemKey)
 }
 
-func MarshalPublicKey(key *rsa.PublicKey) string {
+func marshalPublicKey(key *rsa.PublicKey) string {
     pemKeyBytes := x509.MarshalPKCS1PublicKey(key)
     pemKey := pem.EncodeToMemory(&pem.Block{
         Type: "RSA PUBLIC KEY",
@@ -156,11 +156,16 @@ func MarshalPublicKey(key *rsa.PublicKey) string {
     return string(pemKey)
 }
 
-func GenKeys() (*rsa.PrivateKey, *rsa.PublicKey, error) {
+func genKeys() (*rsa.PrivateKey, *rsa.PublicKey) {
     privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
     if err != nil {
         panic(err)
     }
 
-    return privateKey, &privateKey.PublicKey, nil
+    return privateKey, &privateKey.PublicKey
+}
+
+func GenKeys() (string, string) {
+    priv, pub := genKeys()
+    return marshalPrivateKey(priv), marshalPublicKey(pub)
 }
