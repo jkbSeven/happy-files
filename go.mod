@@ -2,12 +2,6 @@ module github.com/jkbSeven/happy-files
 
 go 1.22.1
 
-require (
-        // github.com/jkbSeven/happy-files/auth v1.0.0
-        // github.com/jkbSeven/happy-files/crypto v1.0.0
-        github.com/jkbSeven/happy-files/dialog v1.0.0
-)
+require golang.org/x/crypto v0.23.0
 
-replace github.com/jkbSeven/happy-files/auth => ./auth
-replace github.com/jkbSeven/happy-files/crypto => ./crypto
-replace github.com/jkbSeven/happy-files/dialog => ./dialog
+require golang.org/x/sys v0.20.0 // indirect
